@@ -4,13 +4,16 @@ import requests
 import pdfplumber
 import io
 import os
-import torch
 
 app = Flask(__name__)
-print("Torch version:", torch.__version__)
 
-# Load QA pipeline once
-qa_pipeline = pipeline("question-answering", model="distilbert-base-uncased-distilled-squad")
+try:
+    # Load QA pipeline with TensorFlow backend
+    qa_pipeline = pipeline("question-answering", model="distilbert-base-uncased-distilled-squad", framework="tf")
+except ImportError as e:
+    # If tensorflow not installed or pipeline loading fails
+    print(f"Error loading pipeline with TensorFlow backend: {e}")
+    qa_pipeline = None
 
 MAX_CHUNK_SIZE = 4500  # approx chars per chunk; adjust if needed
 
@@ -32,6 +35,9 @@ def chunk_text(text, max_size=MAX_CHUNK_SIZE):
 
 @app.route("/hackrx/run", methods=["POST"])
 def run():
+    if qa_pipeline is None:
+        return jsonify({"error": "QA pipeline is not initialized. TensorFlow might not be installed."}), 500
+
     data = request.get_json()
 
     if not data or "documents" not in data or "questions" not in data:
@@ -82,3 +88,4 @@ def run():
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port)
+
