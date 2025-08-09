@@ -2,19 +2,17 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-# Install system dependencies (if needed)
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    gcc \
-    && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y gcc && rm -rf /var/lib/apt/lists/*
 
-# Upgrade pip and install required packages
 COPY requirements.txt .
+
 RUN pip install --upgrade pip
 
-# Install tensorflow (CPU-only)
+# Install both torch CPU and tensorflow CPU:
+RUN pip install torch==2.1.1+cpu torchvision==0.15.2+cpu torchaudio==2.0.2+cpu -f https://download.pytorch.org/whl/torch_stable.html
 RUN pip install tensorflow-cpu==2.13.0
 
-# Install other python dependencies
+# Then install other deps
 RUN pip install -r requirements.txt
 
 COPY . /app
