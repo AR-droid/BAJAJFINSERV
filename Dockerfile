@@ -1,31 +1,26 @@
-# Use official Python slim image
 FROM python:3.11-slim
 
-# Set working directory
 WORKDIR /app
 
-# Copy requirements.txt (make sure you create this with needed packages)
-COPY requirements.txt .
-
-# Install system dependencies for pdfplumber and others
-RUN apt-get update && apt-get install -y \
-    build-essential \
-    libpoppler-cpp-dev \
-    pkg-config \
-    python3-dev \
+# Install system dependencies (if needed)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    gcc \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Python dependencies
-RUN pip install --no-cache-dir -r requirements.txt
+# Upgrade pip and install required packages
+COPY requirements.txt .
+RUN pip install --upgrade pip
 
-# Copy app source code
-COPY . .
+# Install tensorflow (CPU-only)
+RUN pip install tensorflow-cpu==2.13.0
 
-# Expose port (optional, default Flask port)
-EXPOSE 5000
+# Install other python dependencies
+RUN pip install -r requirements.txt
 
-# Run the app
+COPY . /app
+
 CMD ["python", "app.py"]
+
 
 
 
