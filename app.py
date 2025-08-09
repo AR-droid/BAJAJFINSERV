@@ -4,23 +4,24 @@ import requests
 import pdfplumber
 import io
 import os
+import re
 
 app = Flask(__name__)
+
+# Load pipeline once app starts
 qa_pipeline = pipeline("question-answering", model="distilbert-base-uncased-distilled-squad")
 
-
-
-MAX_CHUNK_SIZE = 1500  # smaller chunk size for faster processing
-MAX_CHUNKS_TO_CHECK = 2  # check only first 2 chunks per question
+MAX_CHUNK_SIZE = 3000  # reduced chunk size for faster processing
+MAX_CHUNKS_PER_QUESTION = 5  # limit chunks processed per question
+SCORE_THRESHOLD = 0.85  # early stop threshold to save time
 
 def chunk_text(text, max_size=MAX_CHUNK_SIZE):
-    import re
     sentences = re.split(r'(?<=[.?!])\s+', text)
     chunks = []
     current_chunk = ""
     for sent in sentences:
         if len(current_chunk) + len(sent) + 1 <= max_size:
-            current_chunk += " " + sent if current_chunk else sent
+            current_chunk += (" " + sent) if current_chunk else sent
         else:
             chunks.append(current_chunk)
             current_chunk = sent
@@ -59,14 +60,15 @@ def run():
         for question in questions:
             best_answer = None
             best_score = -1
-            # Only check first few chunks to save time
-            for chunk in chunks[:MAX_CHUNKS_TO_CHECK]:
+            chunks_checked = 0
+            for chunk in chunks:
                 result = qa_pipeline(question=question, context=chunk)
                 if result["score"] > best_score:
                     best_score = result["score"]
                     best_answer = result["answer"]
-                if best_score > 0.85:
-                    break  # early stop if confident answer found
+                chunks_checked += 1
+                if best_score > SCORE_THRESHOLD or chunks_checked >= MAX_CHUNKS_PER_QUESTION:
+                    break
             if not best_answer or best_answer.strip() == "":
                 best_answer = "I cannot find the answer in the document."
             answers.append(best_answer)
