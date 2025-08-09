@@ -9,8 +9,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Upgrade pip
 RUN pip install --upgrade pip
 
-# Install python dependencies incl PyTorch CPU wheels
-RUN pip install --no-cache-dir numpy<2
+RUN pip install --no-cache-dir "numpy<2"
 RUN pip install --no-cache-dir torch==2.1.1+cpu torchvision==0.15.2+cpu torchaudio==2.0.2+cpu -f https://download.pytorch.org/whl/torch_stable.html
 RUN pip install --no-cache-dir transformers pdfplumber requests flask
 
