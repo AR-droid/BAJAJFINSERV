@@ -7,6 +7,7 @@ import os
 import torch
 
 app = Flask(__name__)
+print("Torch version:", torch.__version__)
 
 # Load QA pipeline once
 qa_pipeline = pipeline("question-answering", model="distilbert-base-uncased-distilled-squad")
