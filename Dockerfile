@@ -9,13 +9,25 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Upgrade pip
 RUN pip install --upgrade pip
 
+# Install numpy < 2 to avoid compatibility issues
 RUN pip install --no-cache-dir "numpy<2"
-RUN pip install --no-cache-dir torch==2.1.1+cpu torchvision==0.15.2+cpu torchaudio==2.0.2+cpu -f https://download.pytorch.org/whl/torch_stable.html
+
+# Install specific PyTorch CPU wheels (ensure matching Python version and platform)
+RUN pip install --no-cache-dir \
+    torch==2.1.1+cpu torchvision==0.15.2+cpu torchaudio==2.0.2+cpu \
+    -f https://download.pytorch.org/whl/torch_stable.html
+
+# Install other dependencies
 RUN pip install --no-cache-dir transformers pdfplumber requests flask
 
+# Copy application code
 COPY . /app
 WORKDIR /app
 
+# Expose port if needed (optional)
+EXPOSE 5000
+
+# Run the Flask application
 CMD ["python", "app.py"]
 
 
