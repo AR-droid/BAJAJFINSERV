@@ -4,21 +4,21 @@ import requests
 import pdfplumber
 import io
 import os
+import re
 
 app = Flask(__name__)
 
 try:
-    # Load QA pipeline with default framework (PyTorch CPU)
+    # Load QA pipeline with default framework (PyTorch or TensorFlow)
     qa_pipeline = pipeline("question-answering", model="distilbert-base-uncased-distilled-squad")
 except ImportError as e:
     print(f"Error loading pipeline: {e}")
     qa_pipeline = None
 
-MAX_CHUNK_SIZE = 4500  # approx chars per chunk; adjust if needed
+MAX_CHUNK_SIZE = 4500  # approx chars per chunk
 
 def chunk_text(text, max_size=MAX_CHUNK_SIZE):
-    """Split text into chunks no longer than max_size, on sentence boundaries if possible."""
-    import re
+    """Split text into chunks no longer than max_size, preferably on sentence boundaries."""
     sentences = re.split(r'(?<=[.?!])\s+', text)
     chunks = []
     current_chunk = ""
@@ -32,10 +32,18 @@ def chunk_text(text, max_size=MAX_CHUNK_SIZE):
         chunks.append(current_chunk)
     return chunks
 
+def format_question(question):
+    return (
+        "You are a helpful assistant. "
+        "Read the following document carefully and answer the question accurately. "
+        "If the answer is not in the text, respond with 'Answer not found in the document.'\n\n"
+        f"Question: {question}"
+    )
+
 @app.route("/hackrx/run", methods=["POST"])
 def run():
     if qa_pipeline is None:
-        return jsonify({"error": "QA pipeline is not initialized. TensorFlow might not be installed."}), 500
+        return jsonify({"error": "QA pipeline is not initialized."}), 500
 
     data = request.get_json()
 
@@ -62,20 +70,20 @@ def run():
         if not text.strip():
             return jsonify({"error": "Failed to extract text from PDF"}), 500
 
-        # Chunk text for QA
         chunks = chunk_text(text)
 
         answers = []
         for question in questions:
             best_answer = None
             best_score = -1
+            formatted_question = format_question(question)
             for chunk in chunks:
-                result = qa_pipeline(question=question, context=chunk)
+                result = qa_pipeline(question=formatted_question, context=chunk)
                 if result["score"] > best_score:
                     best_score = result["score"]
                     best_answer = result["answer"]
-            if best_answer is None or best_answer.strip() == "":
-                best_answer = "I cannot find the answer in the document."
+            if not best_answer or best_answer.strip() == "":
+                best_answer = "Answer not found in the document."
             answers.append(best_answer)
 
         return jsonify({"answers": answers})
