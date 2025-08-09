@@ -11,7 +11,7 @@ RUN pip install --upgrade pip
 
 # Install compatible PyTorch CPU packages and dependencies
 RUN pip install --no-cache-dir \
-    numpy<2 \
+    "numpy<2" \
     torch==2.0.1+cpu torchvision==0.15.2+cpu torchaudio==2.0.2+cpu \
     -f https://download.pytorch.org/whl/torch_stable.html
 
