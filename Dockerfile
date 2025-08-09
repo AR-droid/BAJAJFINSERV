@@ -9,17 +9,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Upgrade pip
 RUN pip install --upgrade pip
 
-# Install numpy version < 2 for compatibility
-RUN pip install --no-cache-dir "numpy<2"
+# Install PyTorch CPU packages without version pins
+RUN pip install --no-cache-dir torch torchvision torchaudio -f https://download.pytorch.org/whl/torch_stable.html
 
-# Install compatible PyTorch CPU packages
-RUN pip install --no-cache-dir \
-    torch==2.1.2+cpu \
-    torchvision==0.16.2+cpu \
-    torchaudio==2.0.2+cpu \
-    -f https://download.pytorch.org/whl/torch_stable.html
-
-# Install other Python dependencies
+# Install other Python dependencies without versions
 RUN pip install --no-cache-dir transformers pdfplumber requests flask
 
 # Copy app code
@@ -28,8 +21,6 @@ WORKDIR /app
 
 # Command to run the app
 CMD ["python", "app.py"]
-
-
 
 
 
