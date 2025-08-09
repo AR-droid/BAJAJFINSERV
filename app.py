@@ -7,8 +7,8 @@ import os
 
 app = Flask(__name__)
 
-# Load pipeline once app starts
-qa_pipeline = pipeline("question-answering", model="distilbert-base-uncased-distilled-squad")
+qa_pipeline = pipeline("question-answering", model="deepset/roberta-base-squad2")
+
 
 MAX_CHUNK_SIZE = 1500  # smaller chunk size for faster processing
 MAX_CHUNKS_TO_CHECK = 2  # check only first 2 chunks per question
