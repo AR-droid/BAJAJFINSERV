@@ -8,11 +8,10 @@ import os
 app = Flask(__name__)
 
 try:
-    # Load QA pipeline with TensorFlow backend
-    qa_pipeline = pipeline("question-answering", model="distilbert-base-uncased-distilled-squad", framework="tf")
+    # Load QA pipeline with default framework (PyTorch CPU)
+    qa_pipeline = pipeline("question-answering", model="distilbert-base-uncased-distilled-squad")
 except ImportError as e:
-    # If tensorflow not installed or pipeline loading fails
-    print(f"Error loading pipeline with TensorFlow backend: {e}")
+    print(f"Error loading pipeline: {e}")
     qa_pipeline = None
 
 MAX_CHUNK_SIZE = 4500  # approx chars per chunk; adjust if needed
