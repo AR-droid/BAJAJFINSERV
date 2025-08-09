@@ -1,6 +1,6 @@
 FROM python:3.11-slim-bullseye
 
-# Install system dependencies for PDF processing and PyTorch
+# Install system dependencies for PDF processing
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     libglib2.0-0 libsm6 libxext6 libxrender-dev \
@@ -9,10 +9,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Upgrade pip
 RUN pip install --upgrade pip
 
-# Install PyTorch CPU packages without version pins
-RUN pip install --no-cache-dir torch torchvision torchaudio -f https://download.pytorch.org/whl/torch_stable.html
-
-# Install other Python dependencies without versions
+# Install Python dependencies without fixed torch versions to avoid conflicts
 RUN pip install --no-cache-dir transformers pdfplumber requests flask
 
 # Copy app code
