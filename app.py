@@ -4,17 +4,17 @@ import requests
 import pdfplumber
 import io
 import os
-import re
 
 app = Flask(__name__)
 
 # Load pipeline once app starts
 qa_pipeline = pipeline("question-answering", model="distilbert-base-uncased-distilled-squad")
 
-MAX_CHUNK_SIZE = 4500
-MAX_CHUNKS_TO_CHECK = 3  # Only check first 3 chunks per question to speed up
+MAX_CHUNK_SIZE = 1500  # smaller chunk size for faster processing
+MAX_CHUNKS_TO_CHECK = 2  # check only first 2 chunks per question
 
 def chunk_text(text, max_size=MAX_CHUNK_SIZE):
+    import re
     sentences = re.split(r'(?<=[.?!])\s+', text)
     chunks = []
     current_chunk = ""
@@ -59,17 +59,19 @@ def run():
         for question in questions:
             best_answer = None
             best_score = -1
-            # Limit number of chunks to check for speed
+            # Only check first few chunks to save time
             for chunk in chunks[:MAX_CHUNKS_TO_CHECK]:
                 result = qa_pipeline(question=question, context=chunk)
                 if result["score"] > best_score:
                     best_score = result["score"]
                     best_answer = result["answer"]
+                if best_score > 0.85:
+                    break  # early stop if confident answer found
             if not best_answer or best_answer.strip() == "":
                 best_answer = "I cannot find the answer in the document."
             answers.append(best_answer)
 
-        return jsonify({"status": "success", "answers": answers})
+        return jsonify({"answers": answers})
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
