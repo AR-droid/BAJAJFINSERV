@@ -1,25 +1,28 @@
-# Use official PyTorch CPU image with Python 3.11
-FROM pytorch/pytorch:2.1.1-cpu
+FROM python:3.11-slim-bullseye
 
-# Install system dependencies needed for PDF processing
+# Install system dependencies for PDF processing and PyTorch
 RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
     libglib2.0-0 libsm6 libxext6 libxrender-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Upgrade pip (optional but recommended)
+# Upgrade pip
 RUN pip install --upgrade pip
 
-# Install Python dependencies
+# Install compatible PyTorch CPU packages and dependencies
+RUN pip install --no-cache-dir \
+    numpy<2 \
+    torch==2.0.1+cpu torchvision==0.15.2+cpu torchaudio==2.0.2+cpu \
+    -f https://download.pytorch.org/whl/torch_stable.html
+
+# Install other Python dependencies
 RUN pip install --no-cache-dir transformers pdfplumber requests flask
 
-# Copy your app source code into the container
+# Copy app code
 COPY . /app
 WORKDIR /app
 
-# Expose port if needed (optional)
-EXPOSE 5000
-
-# Run the Flask app
+# Command to run the app
 CMD ["python", "app.py"]
 
 
