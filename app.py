@@ -6,8 +6,7 @@ import io
 import os
 
 app = Flask(__name__)
-
-qa_pipeline = pipeline("question-answering", model="deepset/roberta-base-squad2")
+qa_pipeline = pipeline("question-answering", model="valhalla/distilbert-base-uncased-squad2")
 
 
 MAX_CHUNK_SIZE = 1500  # smaller chunk size for faster processing
