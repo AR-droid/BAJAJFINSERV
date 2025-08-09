@@ -4,6 +4,7 @@ import requests
 import pdfplumber
 import io
 import os
+from threading import Thread
 
 app = Flask(__name__)
 
@@ -27,16 +28,8 @@ def chunk_text(text, max_size=MAX_CHUNK_SIZE):
         chunks.append(current_chunk)
     return chunks
 
-@app.route("/hackrx/run", methods=["POST"])
-def run():
-    data = request.get_json()
-
-    if not data or "documents" not in data or "questions" not in data:
-        return jsonify({"error": "Please provide 'documents' (URL) and 'questions' (list) in JSON body"}), 400
-
-    pdf_url = data["documents"]
-    questions = data["questions"]
-
+# Background worker to process the QA and store or log results as needed
+def process_qa(pdf_url, questions):
     try:
         pdf_response = requests.get(pdf_url)
         pdf_response.raise_for_status()
@@ -50,7 +43,9 @@ def run():
                     text += page_text + "\n"
 
         if not text.strip():
-            return jsonify({"error": "Failed to extract text from PDF"}), 500
+            # You can log or handle this error differently
+            print("Failed to extract text from PDF")
+            return
 
         chunks = chunk_text(text)
 
@@ -67,11 +62,27 @@ def run():
                 best_answer = "I cannot find the answer in the document."
             answers.append(best_answer)
 
-        return jsonify({"answers": answers})
+        # For example: log answers, store in DB, or send somewhere
+        print({"answers": answers})
 
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        print(f"Error in background QA processing: {e}")
 
+@app.route("/hackrx/run", methods=["POST"])
+def run():
+    data = request.get_json()
+
+    if not data or "documents" not in data or "questions" not in data:
+        return jsonify({"error": "Please provide 'documents' (URL) and 'questions' (list) in JSON body"}), 400
+
+    pdf_url = data["documents"]
+    questions = data["questions"]
+
+    # Start background thread to process QA
+    Thread(target=process_qa, args=(pdf_url, questions), daemon=True).start()
+
+    # Return immediately
+    return jsonify({"status": "Processing started"}), 202
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
