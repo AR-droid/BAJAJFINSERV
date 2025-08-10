@@ -1,29 +1,29 @@
-FROM python:3.11-slim-bullseye
+# Use lightweight Python image
+FROM python:3.10-slim
 
-# System dependencies for PyTorch, PDF, and general
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    build-essential \
-    libglib2.0-0 libsm6 libxext6 libxrender-dev curl \
+# Avoid Python buffering
+ENV PYTHONUNBUFFERED=1
+
+# Install system deps for spaCy
+RUN apt-get update && apt-get install -y \
+    gcc \
     && rm -rf /var/lib/apt/lists/*
 
-# Upgrade pip
-RUN pip install --upgrade pip setuptools wheel
-
-# Install PyTorch CPU and torchvision (without fixed minor versions, to avoid conflicts)
-RUN pip install --no-cache-dir torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
-
-# Install transformers and other deps
-RUN pip install --no-cache-dir transformers pdfplumber requests flask
-
-# Copy app and set workdir
-COPY . /app
+# Set working directory
 WORKDIR /app
 
-# Expose port if needed
-EXPOSE 5000
+# Copy files
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
 
-# Run your app
+# Download small spaCy model
+RUN python -m spacy download en_core_web_sm
+
+COPY . .
+
+# Run app.py when container starts
 CMD ["python", "app.py"]
+
 
 
 
