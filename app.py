@@ -1,86 +1,60 @@
 from flask import Flask, request, jsonify
-from transformers import pipeline
-import requests
-import pdfplumber
-import io
-import os
+import spacy
+import fitz  # PyMuPDF for PDF reading
 import re
 
 app = Flask(__name__)
 
-# Load pipeline once app starts
-qa_pipeline = pipeline("question-answering", model="distilbert-base-uncased-distilled-squad")
+# Load spaCy model (English small is <15MB and loads instantly)
+nlp = spacy.load("en_core_web_sm")
 
-MAX_CHUNK_SIZE = 3000  # reduced chunk size for faster processing
-MAX_CHUNKS_PER_QUESTION = 5  # limit chunks processed per question
-SCORE_THRESHOLD = 0.85  # early stop threshold to save time
+def extract_text_from_pdf(pdf_path):
+    text = ""
+    with fitz.open(pdf_path) as doc:
+        for page in doc:
+            text += page.get_text()
+    return text
 
-def chunk_text(text, max_size=MAX_CHUNK_SIZE):
-    sentences = re.split(r'(?<=[.?!])\s+', text)
-    chunks = []
-    current_chunk = ""
-    for sent in sentences:
-        if len(current_chunk) + len(sent) + 1 <= max_size:
-            current_chunk += (" " + sent) if current_chunk else sent
-        else:
-            chunks.append(current_chunk)
-            current_chunk = sent
-    if current_chunk:
-        chunks.append(current_chunk)
-    return chunks
+def simple_qa(document_text, question):
+    # Split doc into sentences
+    doc_sentences = list(nlp(document_text).sents)
+    question_tokens = set([t.lemma_.lower() for t in nlp(question) if not t.is_stop])
+
+    best_sentence = ""
+    best_score = 0
+
+    for sent in doc_sentences:
+        sent_tokens = set([t.lemma_.lower() for t in sent if not t.is_stop])
+        score = len(question_tokens & sent_tokens)
+        if score > best_score:
+            best_score = score
+            best_sentence = sent.text
+
+    return best_sentence if best_sentence else "Answer not found in document"
 
 @app.route("/hackrx/run", methods=["POST"])
-def run():
+def run_qa():
     data = request.get_json()
+    pdf_url = data.get("documents")
+    questions = data.get("questions", [])
 
-    if not data or "documents" not in data or "questions" not in data:
-        return jsonify({"error": "Please provide 'documents' (URL) and 'questions' (list) in JSON body"}), 400
+    # For testing, just download PDF locally first
+    import requests, tempfile
+    temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".pdf")
+    pdf_data = requests.get(pdf_url).content
+    temp_file.write(pdf_data)
+    temp_file.close()
 
-    pdf_url = data["documents"]
-    questions = data["questions"]
+    document_text = extract_text_from_pdf(temp_file.name)
 
-    try:
-        pdf_response = requests.get(pdf_url)
-        pdf_response.raise_for_status()
-        pdf_bytes = io.BytesIO(pdf_response.content)
+    answers = []
+    for q in questions:
+        ans = simple_qa(document_text, q)
+        answers.append(ans)
 
-        with pdfplumber.open(pdf_bytes) as pdf:
-            text = ""
-            for page in pdf.pages:
-                page_text = page.extract_text()
-                if page_text:
-                    text += page_text + "\n"
-
-        if not text.strip():
-            return jsonify({"error": "Failed to extract text from PDF"}), 500
-
-        chunks = chunk_text(text)
-
-        answers = []
-        for question in questions:
-            best_answer = None
-            best_score = -1
-            chunks_checked = 0
-            for chunk in chunks:
-                result = qa_pipeline(question=question, context=chunk)
-                if result["score"] > best_score:
-                    best_score = result["score"]
-                    best_answer = result["answer"]
-                chunks_checked += 1
-                if best_score > SCORE_THRESHOLD or chunks_checked >= MAX_CHUNKS_PER_QUESTION:
-                    break
-            if not best_answer or best_answer.strip() == "":
-                best_answer = "I cannot find the answer in the document."
-            answers.append(best_answer)
-
-        return jsonify({"answers": answers})
-
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
+    return jsonify({"answers": answers})
 
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 5000))
-    app.run(host="0.0.0.0", port=port)
+    app.run(host="0.0.0.0", port=8000)
 
 
